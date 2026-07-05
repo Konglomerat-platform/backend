@@ -1,3 +1,6 @@
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.decorators import action
@@ -25,6 +28,19 @@ from core.utils import get_by_external
 class StatsView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        responses=inline_serializer(
+            name="StatsResponse",
+            fields={
+                "companies": serializers.IntegerField(),
+                "aiRequests": serializers.IntegerField(),
+                "startups": serializers.IntegerField(),
+                "showrooms": serializers.IntegerField(),
+                "complaints": serializers.IntegerField(),
+                "conferences": serializers.IntegerField(),
+            },
+        )
+    )
     def get(self, _request):
         return Response(
             {
@@ -90,6 +106,7 @@ class ManagementModuleViewSet(GenericViewSet):
 class ReportGenerateView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(request=OpenApiTypes.NONE, responses=ReportSerializer)
     def post(self, request):
         report = generate_report(request.user)
         return Response(ReportSerializer(report).data, status=status.HTTP_201_CREATED)

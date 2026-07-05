@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from apps.notifications.api.serializers import NotificationSerializer
+from apps.notifications.models import Notification
 from apps.notifications.models import NotificationRead
 from apps.notifications.services import mark_all_read, visible_notifications
 
@@ -13,10 +14,15 @@ class NotificationViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
         return visible_notifications(self.request.user)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
+        if getattr(self, "swagger_fake_view", False):
+            context["read_ids"] = set()
+            return context
         context["read_ids"] = set(
             NotificationRead.objects.filter(user=self.request.user).values_list("notification_id", flat=True)
         )

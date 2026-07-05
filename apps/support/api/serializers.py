@@ -43,10 +43,10 @@ class ComplaintSerializer(serializers.ModelSerializer):
     def get_from_name(self, obj: Complaint) -> str:
         return obj.from_company.name if obj.from_company_id else obj.from_name
 
-    def get_title(self, obj: Complaint):
+    def get_title(self, obj: Complaint) -> dict | None:
         return obj.subject_i18n or None
 
-    def get_text(self, obj: Complaint):
+    def get_text(self, obj: Complaint) -> dict:
         return obj.message_i18n or obj.raw_message
 
     def get_images(self, obj: Complaint) -> list[str]:

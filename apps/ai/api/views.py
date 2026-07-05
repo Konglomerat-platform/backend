@@ -1,3 +1,6 @@
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,6 +17,16 @@ from apps.support.models import Complaint
 class AiUsageView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        responses=inline_serializer(
+            name="AiUsageResponse",
+            fields={
+                "used": serializers.IntegerField(),
+                "remaining": serializers.IntegerField(),
+                "locked": serializers.BooleanField(),
+            },
+        )
+    )
     def get(self, request):
         visitor = request.query_params.get("visitor") or ""
         usage = AiUsage.objects.filter(visitor_id=visitor).first()
@@ -24,6 +37,26 @@ class AiUsageView(APIView):
 class AiChatView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=inline_serializer(
+            name="AiChatRequest",
+            fields={
+                "message": serializers.CharField(),
+                "lang": serializers.CharField(required=False),
+                "visitor": serializers.CharField(required=False, allow_blank=True),
+            },
+        ),
+        responses=inline_serializer(
+            name="AiChatResponse",
+            fields={
+                "offtopic": serializers.BooleanField(required=False),
+                "reply": serializers.CharField(required=False, allow_null=True),
+                "remaining": serializers.IntegerField(required=False, allow_null=True),
+                "locked": serializers.BooleanField(),
+                "error": serializers.CharField(required=False),
+            },
+        ),
+    )
     def post(self, request):
         message = str(request.data.get("message") or "")
         lang = request.data.get("lang") or "ru"
@@ -71,6 +104,19 @@ class AiChatView(APIView):
 class AiLetterView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=inline_serializer(
+            name="AiLetterRequest",
+            fields={
+                "message": serializers.CharField(),
+                "lang": serializers.CharField(required=False),
+                "attachments": serializers.ListField(
+                    child=serializers.JSONField(), required=False
+                ),
+            },
+        ),
+        responses=OpenApiTypes.OBJECT,
+    )
     def post(self, request):
         company_name = request.user.company.name if request.user.company_id else request.user.public_name
         return Response(

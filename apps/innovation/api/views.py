@@ -17,6 +17,8 @@ class RndSubmissionViewSet(ModelViewSet):
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return RndSubmission.objects.none()
         return submissions_for_user(self.request.user, self.request.query_params.get("company"))
 
     def get_object(self):
