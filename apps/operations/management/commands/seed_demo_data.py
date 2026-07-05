@@ -47,7 +47,7 @@ class Command(BaseCommand):
             username="admin",
             defaults={"role": User.Role.ADMIN, "display_name": "Admin", "is_staff": True, "is_superuser": True},
         )
-        admin.set_password("admin123")
+        admin.set_password("12")
         admin.save()
 
         company_user, _ = User.objects.update_or_create(
@@ -58,7 +58,7 @@ class Command(BaseCommand):
                 "display_name": "Oltin Saroy",
             },
         )
-        company_user.set_password("company123")
+        company_user.set_password("12")
         company_user.save()
 
         product_rows = [
