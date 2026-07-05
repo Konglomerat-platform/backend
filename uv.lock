@@ -118,6 +118,18 @@ wheels = [
 ]
 
 [[package]]
+name = "django-unfold"
+version = "0.99.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e4/06/b4f55dd7480086703829a9b888931e783ae83fb13b381c41638f6e7eb9ac/django_unfold-0.99.1.tar.gz", hash = "sha256:e949338f98f36e12baf8f8e9635d2954d4585d8e0980703a9f722189e1a8d72f", size = 1126033, upload-time = "2026-07-01T15:14:01.029Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/58/2b0e7ca60d6955f1afe9141f90a2ff8c9ec2e0014fe127940d9d880f4cd9/django_unfold-0.99.1-py3-none-any.whl", hash = "sha256:3d024c8d2535590abbaada687c2c41a39d4a7200027d678d6d2d3a58baa2ddcf", size = 1253604, upload-time = "2026-07-01T15:13:59.644Z" },
+]
+
+[[package]]
 name = "djangorestframework"
 version = "3.17.1"
 source = { registry = "https://pypi.org/simple" }
@@ -237,6 +249,7 @@ dependencies = [
     { name = "django-environ" },
     { name = "django-filter" },
     { name = "django-storages" },
+    { name = "django-unfold" },
     { name = "djangorestframework" },
     { name = "djangorestframework-simplejwt" },
     { name = "drf-spectacular" },
@@ -260,6 +273,7 @@ requires-dist = [
     { name = "django-environ", specifier = ">=0.12,<1" },
     { name = "django-filter", specifier = ">=25.1" },
     { name = "django-storages", specifier = ">=1.14,<2" },
+    { name = "django-unfold", specifier = "==0.99.1" },
     { name = "djangorestframework", specifier = ">=3.16,<4" },
     { name = "djangorestframework-simplejwt", specifier = ">=5.5,<6" },
     { name = "drf-spectacular", specifier = ">=0.28,<1" },

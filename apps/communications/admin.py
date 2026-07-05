@@ -1,20 +1,51 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
+from unfold.contrib.filters.admin import ChoicesDropdownFilter, RangeDateTimeFilter, RelatedDropdownFilter
 
 from .models import ChatMessage, ChatThread, MessageReceipt
 
 
-class ChatMessageInline(admin.TabularInline):
+class ChatMessageInline(TabularInline):
     model = ChatMessage
     extra = 0
 
 
 @admin.register(ChatThread)
-class ChatThreadAdmin(admin.ModelAdmin):
+class ChatThreadAdmin(ModelAdmin):
     list_display = ("id", "kind", "company", "title", "created_at")
-    list_filter = ("kind", "company")
+    list_filter = (
+        ("kind", ChoicesDropdownFilter),
+        ("company", RelatedDropdownFilter),
+        ("created_at", RangeDateTimeFilter),
+    )
+    search_fields = ("title", "company__name")
+    autocomplete_fields = ("company",)
+    readonly_fields = ("created_at",)
     inlines = [ChatMessageInline]
 
 
+@admin.register(ChatMessage)
+class ChatMessageAdmin(ModelAdmin):
+    list_display = ("id", "thread", "sender", "kind", "edited", "created_at")
+    list_filter = (
+        ("kind", ChoicesDropdownFilter),
+        ("edited", ChoicesDropdownFilter),
+        ("thread", RelatedDropdownFilter),
+        ("sender", RelatedDropdownFilter),
+        ("created_at", RangeDateTimeFilter),
+    )
+    search_fields = ("legacy_id", "text", "name", "sender__username", "sender__email")
+    autocomplete_fields = ("thread", "sender")
+    readonly_fields = ("created_at", "updated_at")
+
+
 @admin.register(MessageReceipt)
-class MessageReceiptAdmin(admin.ModelAdmin):
+class MessageReceiptAdmin(ModelAdmin):
     list_display = ("message", "user", "seen_at")
+    list_filter = (
+        ("user", RelatedDropdownFilter),
+        ("seen_at", RangeDateTimeFilter),
+    )
+    search_fields = ("message__text", "user__username", "user__email")
+    autocomplete_fields = ("message", "user")
+    readonly_fields = ("seen_at",)

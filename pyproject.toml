@@ -16,6 +16,7 @@ dependencies = [
     "boto3>=1.34,<2",
     "psycopg[binary]>=3.2,<4",
     "pillow>=11.0,<12",
+    "django-unfold==0.99.1",
 ]
 
 [dependency-groups]

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import environ
 from django.core.exceptions import ImproperlyConfigured
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 APPS_DIR = BASE_DIR / "apps"
@@ -47,6 +49,9 @@ DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 DJANGO_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -242,5 +247,83 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
         "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}
+
+UNFOLD = {
+    "SITE_TITLE": "Konglomerat Admin",
+    "SITE_HEADER": "Konglomerat",
+    "SITE_SUBHEADER": "Platform management",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Accounts & Companies"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("Users"), "icon": "person", "link": reverse_lazy("admin:users_user_changelist")},
+                    {"title": _("Companies"), "icon": "business", "link": reverse_lazy("admin:companies_company_changelist")},
+                    {"title": _("Groups"), "icon": "security", "link": reverse_lazy("admin:auth_group_changelist")},
+                ],
+            },
+            {
+                "title": _("Catalog & Commerce"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("Products"), "icon": "inventory_2", "link": reverse_lazy("admin:catalog_product_changelist")},
+                    {"title": _("Product Images"), "icon": "image", "link": reverse_lazy("admin:catalog_productimage_changelist")},
+                    {"title": _("Orders"), "icon": "shopping_cart", "link": reverse_lazy("admin:commerce_order_changelist")},
+                    {"title": _("Favorite Collections"), "icon": "favorite", "link": reverse_lazy("admin:commerce_favoritecollection_changelist")},
+                    {"title": _("Favorite Items"), "icon": "bookmark", "link": reverse_lazy("admin:commerce_favoriteitem_changelist")},
+                ],
+            },
+            {
+                "title": _("Content & Innovation"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("News Articles"), "icon": "newspaper", "link": reverse_lazy("admin:content_newsarticle_changelist")},
+                    {"title": _("News Images"), "icon": "collections", "link": reverse_lazy("admin:content_newsimage_changelist")},
+                    {"title": _("R&D Submissions"), "icon": "science", "link": reverse_lazy("admin:innovation_rndsubmission_changelist")},
+                ],
+            },
+            {
+                "title": _("Support & Communications"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("Complaints"), "icon": "support_agent", "link": reverse_lazy("admin:support_complaint_changelist")},
+                    {"title": _("Complaint Attachments"), "icon": "attach_file", "link": reverse_lazy("admin:support_complaintattachment_changelist")},
+                    {"title": _("Chat Threads"), "icon": "forum", "link": reverse_lazy("admin:communications_chatthread_changelist")},
+                    {"title": _("Chat Messages"), "icon": "chat", "link": reverse_lazy("admin:communications_chatmessage_changelist")},
+                    {"title": _("Message Receipts"), "icon": "mark_chat_read", "link": reverse_lazy("admin:communications_messagereceipt_changelist")},
+                ],
+            },
+            {
+                "title": _("Operations"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("Conferences"), "icon": "event", "link": reverse_lazy("admin:operations_conference_changelist")},
+                    {"title": _("Conference Attendance"), "icon": "groups", "link": reverse_lazy("admin:operations_conferenceattendance_changelist")},
+                    {"title": _("Management Modules"), "icon": "dashboard_customize", "link": reverse_lazy("admin:operations_managementmodule_changelist")},
+                    {"title": _("Reports"), "icon": "bar_chart", "link": reverse_lazy("admin:operations_report_changelist")},
+                ],
+            },
+            {
+                "title": _("Notifications & AI"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {"title": _("Notifications"), "icon": "notifications", "link": reverse_lazy("admin:notifications_notification_changelist")},
+                    {"title": _("Notification Reads"), "icon": "done_all", "link": reverse_lazy("admin:notifications_notificationread_changelist")},
+                    {"title": _("AI Usage"), "icon": "smart_toy", "link": reverse_lazy("admin:ai_aiusage_changelist")},
+                    {"title": _("AI Interactions"), "icon": "psychology", "link": reverse_lazy("admin:ai_aiinteraction_changelist")},
+                ],
+            },
+        ],
     },
 }
