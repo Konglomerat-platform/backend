@@ -136,7 +136,7 @@ jobs:
           docker compose ps
 
           for attempt in $(seq 1 30); do
-            if curl -fsS http://localhost/api/schema/ >/dev/null; then
+            if docker compose exec -T nginx wget -q -T 5 -O /dev/null http://127.0.0.1/api/schema/; then
               exit 0
             fi
             sleep 2
