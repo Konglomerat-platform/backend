@@ -1,0 +1,1 @@
+"""Konglomerat domain applications."""

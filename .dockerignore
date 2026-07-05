@@ -1,0 +1,16 @@
+.git
+.github
+.ruff_cache
+.pytest_cache
+.uv-cache
+.venv
+__pycache__
+*.py[cod]
+.env
+.env.*
+!/.env.production.example
+media
+staticfiles
+test-media
+test.sqlite3
+Dockerfile.local
