@@ -35,15 +35,25 @@ class ChatMessage(models.Model):
         TEXT = "text", "Text"
         IMAGE = "image", "Image"
         FILE = "file", "File"
+        VIDEO = "video", "Video"
         VOICE = "voice", "Voice"
 
     legacy_id = models.CharField(max_length=40, blank=True, unique=True, null=True)
     thread = models.ForeignKey(ChatThread, on_delete=models.CASCADE, related_name="messages")
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
     sender = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="chat_messages")
     kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.TEXT)
     text = models.TextField(blank=True)
     file = models.FileField(upload_to="chat/", blank=True)
-    name = models.CharField(max_length=200, blank=True)
+    name = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=127, blank=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     duration_seconds = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     edited = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

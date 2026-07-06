@@ -31,9 +31,11 @@ env = environ.Env(
     SECURE_SSL_REDIRECT=(bool, False),
     SESSION_COOKIE_SECURE=(bool, False),
     CSRF_COOKIE_SECURE=(bool, False),
+    APP_FORCE_HTTPS=(bool, False),
     SECURE_HSTS_SECONDS=(int, 0),
     SECURE_HSTS_INCLUDE_SUBDOMAINS=(bool, False),
     SECURE_HSTS_PRELOAD=(bool, False),
+    REDIS_URL=(str, "redis://localhost:6379/0"),
     USE_S3=(bool, False),
     USE_S3_FOR_STATIC=(bool, False),
     AWS_S3_VERIFY=(bool, True),
@@ -49,6 +51,7 @@ DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
 DJANGO_APPS = [
+    "daphne",
     "unfold",
     "unfold.contrib.filters",
     "unfold.contrib.forms",
@@ -61,6 +64,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "channels",
     "corsheaders",
     "django_filters",
     "rest_framework",
@@ -102,6 +106,8 @@ MIDDLEWARE = [
 ROOT_URLCONF = "core.urls"
 WSGI_APPLICATION = "core.wsgi.application"
 ASGI_APPLICATION = "core.asgi.application"
+APP_FORCE_HTTPS = env("APP_FORCE_HTTPS")
+REDIS_URL = env("REDIS_URL")
 
 TEMPLATES = [
     {
@@ -181,6 +187,20 @@ SIMPLE_JWT = {
 JWT_REFRESH_COOKIE_NAME = "kong_refresh"
 JWT_COOKIE_SECURE = env("JWT_COOKIE_SECURE")
 JWT_COOKIE_SAMESITE = env("JWT_COOKIE_SAMESITE")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [REDIS_URL]},
+    }
+}
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Konglomerat API",

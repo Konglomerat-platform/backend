@@ -6,6 +6,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 
 
@@ -28,9 +29,12 @@ def localized_file_url(request, file_field) -> str | None:
     if not file_field:
         return None
     try:
-        return request.build_absolute_uri(file_field.url)
+        url = request.build_absolute_uri(file_field.url)
     except ValueError:
         return None
+    if getattr(settings, "APP_FORCE_HTTPS", False) and url.startswith("http://"):
+        return "https://" + url.removeprefix("http://")
+    return url
 
 
 def loc(value: dict | str | None, lang: str = "ru") -> str:

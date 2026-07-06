@@ -16,6 +16,17 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/konglomerat-platform/backend:main}
     restart: unless-stopped
@@ -23,6 +34,8 @@ services:
       - ${APP_ENV_FILE:-./.env}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     expose:
       - "8000"
@@ -45,5 +58,6 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   django_static:
   django_media:

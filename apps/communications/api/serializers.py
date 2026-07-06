@@ -1,3 +1,6 @@
+from urllib.parse import quote
+
+from django.conf import settings
 from rest_framework import serializers
 
 from apps.communications.models import ChatMessage, ChatThread
@@ -11,6 +14,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     sender = serializers.CharField(source="sender.public_name")
     role = serializers.CharField(source="sender.role")
     data = serializers.SerializerMethodField()
+    downloadUrl = serializers.SerializerMethodField()
+    contentType = serializers.CharField(source="content_type", read_only=True)
+    size = serializers.IntegerField(source="size_bytes", read_only=True)
+    parent = serializers.SerializerMethodField()
     dur = serializers.SerializerMethodField()
     seenBy = serializers.SerializerMethodField()
     ts = serializers.SerializerMethodField()
@@ -26,7 +33,11 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "kind",
             "text",
             "data",
+            "downloadUrl",
             "name",
+            "contentType",
+            "size",
+            "parent",
             "dur",
             "seenBy",
             "edited",
@@ -43,6 +54,30 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     def get_data(self, obj: ChatMessage) -> str | None:
         return localized_file_url(self.context.get("request"), obj.file)
+
+    def get_downloadUrl(self, obj: ChatMessage) -> str | None:
+        if not obj.file:
+            return None
+        path = f"/api/chat/messages/{quote(external_id(obj), safe='')}/download/"
+        request = self.context.get("request")
+        if not request:
+            return path
+        url = request.build_absolute_uri(path)
+        if getattr(settings, "APP_FORCE_HTTPS", False) and url.startswith("http://"):
+            return "https://" + url.removeprefix("http://")
+        return url
+
+    def get_parent(self, obj: ChatMessage) -> dict | None:
+        if not obj.parent_id:
+            return None
+        parent = obj.parent
+        return {
+            "id": external_id(parent),
+            "sender": parent.sender.public_name,
+            "kind": parent.kind,
+            "text": parent.text,
+            "name": parent.name,
+        }
 
     def get_dur(self, obj: ChatMessage) -> float | None:
         return float(obj.duration_seconds or 0) if obj.duration_seconds else None
