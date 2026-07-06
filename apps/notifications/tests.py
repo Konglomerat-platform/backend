@@ -26,3 +26,20 @@ class NotificationApiTests(TestCase):
         read = client.post("/api/notifications/read/")
         self.assertEqual(read.status_code, 200)
         self.assertEqual(NotificationRead.objects.count(), 1)
+
+    def test_single_notification_can_be_marked_read(self):
+        company = Company.objects.create(name="Acme", slug="acme")
+        user = User.objects.create_user(username="company", role=User.Role.COMPANY, company=company)
+        notification = Notification.objects.create(
+            audience=Notification.Audience.COMPANY,
+            target_company=company,
+            title_i18n={"en": "Hello"},
+            text="Message",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        response = client.post(f"/api/notifications/{notification.id}/read/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(NotificationRead.objects.filter(notification=notification, user=user).exists())

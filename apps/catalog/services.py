@@ -10,9 +10,12 @@ from apps.users.models import User
 from core.utils import data_url_to_content, get_by_external, ml, parse_decimal_label
 
 
+MAX_PRODUCT_IMAGES = 8
+
+
 def save_product_images(product: Product, image_values: list[str]) -> None:
     ProductImage.objects.filter(product=product).delete()
-    for idx, value in enumerate(image_values[:3]):
+    for idx, value in enumerate(image_values[:MAX_PRODUCT_IMAGES]):
         content = data_url_to_content(value, f"product-{product.id}-{idx + 1}")
         if content:
             ProductImage.objects.create(product=product, file=content, sort_order=idx)

@@ -79,3 +79,24 @@ class ChatMessageViewSet(GenericViewSet):
         if message.size_bytes:
             response["Content-Length"] = str(message.size_bytes)
         return response
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path=r"attachments/(?P<attachment_id>[^/.]+)/download",
+    )
+    def attachment_download(self, request, *args, **kwargs):
+        message = message_for_user(request.user, kwargs[self.lookup_field])
+        attachment = message.attachments.filter(pk=kwargs["attachment_id"]).first()
+        if not attachment or not attachment.file:
+            raise NotFound()
+        filename = attachment.name or PurePath(attachment.file.name).name or "attachment"
+        response = FileResponse(
+            attachment.file.open("rb"),
+            as_attachment=True,
+            filename=filename,
+            content_type=attachment.content_type or "application/octet-stream",
+        )
+        if attachment.size_bytes:
+            response["Content-Length"] = str(attachment.size_bytes)
+        return response

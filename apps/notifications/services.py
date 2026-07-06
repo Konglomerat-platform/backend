@@ -33,3 +33,7 @@ def visible_notifications(user: User):
 def mark_all_read(user: User) -> None:
     for notification in visible_notifications(user):
         NotificationRead.objects.get_or_create(notification=notification, user=user)
+
+
+def mark_notification_read(user: User, notification: Notification) -> None:
+    NotificationRead.objects.get_or_create(notification=notification, user=user)

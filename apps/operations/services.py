@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, time
 
 from django.db import transaction
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -17,16 +17,39 @@ def require_admin(user: User) -> None:
         raise PermissionDenied()
 
 
+def normalize_conference_link(value: str) -> str:
+    link = str(value or "").strip()
+    if link and not link.startswith(("http://", "https://")):
+        return f"https://{link}"
+    return link
+
+
+def parse_conference_date(value) -> date:
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return date.today()
+
+
+def parse_conference_time(value) -> time:
+    if isinstance(value, time):
+        return value
+    try:
+        return time.fromisoformat(str(value))
+    except ValueError:
+        return time(hour=12)
+
+
 @transaction.atomic
 def create_conference(user: User, payload: dict) -> Conference:
     require_admin(user)
-    link = str(payload.get("link") or "").strip()
-    if link and not link.startswith(("http://", "https://")):
-        link = ""
+    link = normalize_conference_link(payload.get("link") or "")
     item = Conference.objects.create(
         name=payload.get("name") or "Conference",
-        date=payload.get("date") or date.today(),
-        time=payload.get("time") or "12:00",
+        date=parse_conference_date(payload.get("date") or date.today()),
+        time=parse_conference_time(payload.get("time") or "12:00"),
         description=payload.get("desc") or payload.get("description") or "",
         link=link,
         capacity_total=int(payload.get("total") or 30),
@@ -35,7 +58,7 @@ def create_conference(user: User, payload: dict) -> Conference:
         Notification.Audience.COMPANY,
         {"uz": "Yangi konferensiya", "ru": "Новая конференция", "en": "New conference"},
         f"{item.name} - {item.date} {item.time}",
-        "/company",
+        link or "/company",
     )
     return item
 

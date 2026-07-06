@@ -6,7 +6,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from apps.notifications.api.serializers import NotificationSerializer
 from apps.notifications.models import Notification
 from apps.notifications.models import NotificationRead
-from apps.notifications.services import mark_all_read, visible_notifications
+from apps.notifications.services import mark_all_read, mark_notification_read, visible_notifications
 
 
 class NotificationViewSet(ReadOnlyModelViewSet):
@@ -36,4 +36,9 @@ class NotificationViewSet(ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"], url_path="read")
     def read(self, request):
         mark_all_read(request.user)
+        return Response({"ok": True})
+
+    @action(detail=True, methods=["post"], url_path="read")
+    def read_one(self, request, *args, **kwargs):
+        mark_notification_read(request.user, self.get_object())
         return Response({"ok": True})

@@ -37,6 +37,7 @@ class ChatMessage(models.Model):
         FILE = "file", "File"
         VIDEO = "video", "Video"
         VOICE = "voice", "Voice"
+        ALBUM = "album", "Album"
 
     legacy_id = models.CharField(max_length=40, blank=True, unique=True, null=True)
     thread = models.ForeignKey(ChatThread, on_delete=models.CASCADE, related_name="messages")
@@ -72,3 +73,25 @@ class MessageReceipt(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["message", "user"], name="unique_message_receipt")
         ]
+
+
+class ChatAttachment(models.Model):
+    class Kind(models.TextChoices):
+        IMAGE = "image", "Image"
+        FILE = "file", "File"
+        VIDEO = "video", "Video"
+
+    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, related_name="attachments")
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.FILE)
+    file = models.FileField(upload_to="chat/attachments/")
+    name = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=127, blank=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.name or f"Attachment {self.pk}"

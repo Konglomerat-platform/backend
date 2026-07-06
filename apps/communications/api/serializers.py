@@ -3,7 +3,7 @@ from urllib.parse import quote
 from django.conf import settings
 from rest_framework import serializers
 
-from apps.communications.models import ChatMessage, ChatThread
+from apps.communications.models import ChatAttachment, ChatMessage, ChatThread
 from core.utils import external_id, localized_file_url
 
 
@@ -18,6 +18,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     contentType = serializers.CharField(source="content_type", read_only=True)
     size = serializers.IntegerField(source="size_bytes", read_only=True)
     parent = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
     dur = serializers.SerializerMethodField()
     seenBy = serializers.SerializerMethodField()
     ts = serializers.SerializerMethodField()
@@ -38,6 +39,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "contentType",
             "size",
             "parent",
+            "attachments",
             "dur",
             "seenBy",
             "edited",
@@ -59,6 +61,27 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         path = f"/api/chat/messages/{quote(external_id(obj), safe='')}/download/"
+        return self._absolute_url(path)
+
+    def get_attachments(self, obj: ChatMessage) -> list[dict]:
+        return [self._attachment_payload(obj, attachment) for attachment in obj.attachments.all()]
+
+    def _attachment_payload(self, message: ChatMessage, attachment: ChatAttachment) -> dict:
+        return {
+            "id": attachment.id,
+            "kind": attachment.kind,
+            "url": localized_file_url(self.context.get("request"), attachment.file),
+            "downloadUrl": self._absolute_url(self._attachment_download_path(message, attachment)),
+            "name": attachment.name,
+            "contentType": attachment.content_type,
+            "size": attachment.size_bytes,
+        }
+
+    def _attachment_download_path(self, message: ChatMessage, attachment: ChatAttachment) -> str:
+        message_id = quote(external_id(message), safe="")
+        return f"/api/chat/messages/{message_id}/attachments/{attachment.id}/download/"
+
+    def _absolute_url(self, path: str) -> str:
         request = self.context.get("request")
         if not request:
             return path
@@ -83,7 +106,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return float(obj.duration_seconds or 0) if obj.duration_seconds else None
 
     def get_seenBy(self, obj: ChatMessage) -> list[dict[str, str]]:
-        return [{"name": receipt.user.public_name, "at": receipt.seen_at.isoformat()} for receipt in obj.receipts.all()]
+        return [
+            {"name": receipt.user.public_name, "at": receipt.seen_at.isoformat()}
+            for receipt in obj.receipts.all()
+        ]
 
     def get_ts(self, obj: ChatMessage) -> int:
         return int(obj.created_at.timestamp() * 1000)

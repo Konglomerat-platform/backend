@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
-from apps.communications.models import ChatMessage, ChatThread, MessageReceipt
+from apps.communications.models import ChatAttachment, ChatMessage, ChatThread, MessageReceipt
 from apps.companies.models import Company
 from apps.users.models import User
 from core.utils import data_url_to_content, get_by_external
@@ -17,7 +17,10 @@ VALID_KINDS = {
     ChatMessage.Kind.FILE,
     ChatMessage.Kind.VIDEO,
     ChatMessage.Kind.VOICE,
+    ChatMessage.Kind.ALBUM,
 }
+
+MAX_ALBUM_ATTACHMENTS = 10
 
 
 def thread_for_chat(chat: str, user: User) -> ChatThread | None:
@@ -55,7 +58,7 @@ def messages_for_chat(chat: str, user: User):
         raise PermissionDenied()
     return (
         thread.messages.select_related("sender", "thread__company", "parent__sender")
-        .prefetch_related("receipts__user")
+        .prefetch_related("attachments", "receipts__user")
     )
 
 
@@ -70,7 +73,7 @@ def message_for_user(user: User, message_id: str) -> ChatMessage:
 
 def _message_queryset():
     return ChatMessage.objects.select_related("sender", "thread__company", "parent__sender").prefetch_related(
-        "receipts__user"
+        "attachments", "receipts__user"
     )
 
 
@@ -98,12 +101,54 @@ def _kind_from_file(file_obj, fallback: str) -> str:
     return fallback if fallback != ChatMessage.Kind.TEXT else ChatMessage.Kind.FILE
 
 
+def _attachment_kind_from_file(file_obj) -> str:
+    content_type = getattr(file_obj, "content_type", "") or ""
+    if content_type.startswith("image/"):
+        return ChatAttachment.Kind.IMAGE
+    if content_type.startswith("video/"):
+        return ChatAttachment.Kind.VIDEO
+    return ChatAttachment.Kind.FILE
+
+
+def _payload_files(payload: dict, key: str) -> list:
+    if hasattr(payload, "getlist"):
+        return [item for item in payload.getlist(key) if item]
+    value = payload.get(key)
+    if not value:
+        return []
+    if isinstance(value, (list, tuple)):
+        return [item for item in value if item]
+    return [value]
+
+
+def _create_attachment(message: ChatMessage, upload, index: int) -> ChatAttachment:
+    raw_name = str(getattr(upload, "name", "") or "")
+    content_type = str(getattr(upload, "content_type", "") or "")[:127]
+    attachment = ChatAttachment.objects.create(
+        message=message,
+        kind=_attachment_kind_from_file(upload),
+        name=_clean_filename(raw_name) if raw_name else "",
+        content_type=content_type,
+        size_bytes=getattr(upload, "size", None) or None,
+        sort_order=index,
+    )
+    attachment.file.save(
+        _storage_filename(message.id, attachment.name, attachment.content_type),
+        upload,
+        save=True,
+    )
+    return attachment
+
+
 def create_message(user: User, payload: dict) -> ChatMessage:
     thread = thread_for_chat(payload.get("chat") or "", user)
     if not thread:
         raise PermissionDenied()
+    album_uploads = _payload_files(payload, "files")[:MAX_ALBUM_ATTACHMENTS]
     upload = payload.get("file")
     requested_kind = payload.get("kind") if payload.get("kind") in VALID_KINDS else ChatMessage.Kind.TEXT
+    if album_uploads:
+        requested_kind = ChatMessage.Kind.ALBUM
     kind = _kind_from_file(upload, requested_kind) if upload else requested_kind
     parent = None
     parent_id = payload.get("parent") or payload.get("parentId")
@@ -123,7 +168,10 @@ def create_message(user: User, payload: dict) -> ChatMessage:
         size_bytes=getattr(upload, "size", None) or None,
         duration_seconds=payload.get("dur") or None,
     )
-    if upload:
+    if album_uploads:
+        for index, album_upload in enumerate(album_uploads):
+            _create_attachment(message, album_upload, index)
+    elif upload:
         message.file.save(
             _storage_filename(message.id, message.name, message.content_type),
             upload,

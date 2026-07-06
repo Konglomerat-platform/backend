@@ -3,11 +3,11 @@ from urllib.parse import urlparse
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.communications.models import ChatMessage, ChatThread
+from apps.communications.models import ChatAttachment, ChatMessage, ChatThread
 from apps.companies.models import Company
 from core.asgi import application
 from apps.users.models import User
@@ -67,6 +67,30 @@ class ChatApiTests(TestCase):
         self.assertIn("cards", download["Content-Disposition"])
         self.assertIn(".pdf", download["Content-Disposition"])
 
+    def test_album_upload_groups_multiple_files_under_one_message(self):
+        user = User.objects.create_user(username="company", role=User.Role.COMPANY)
+        client = APIClient()
+        client.force_authenticate(user=user)
+        image = SimpleUploadedFile("one.png", b"png", content_type="image/png")
+        video = SimpleUploadedFile("two.mp4", b"mp4", content_type="video/mp4")
+
+        response = client.post(
+            "/api/chat/messages/",
+            {"chat": "group", "text": "album caption", "files": [image, video]},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["kind"], "album")
+        self.assertEqual(response.data["text"], "album caption")
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        self.assertEqual(ChatAttachment.objects.count(), 2)
+        self.assertEqual([item["kind"] for item in response.data["attachments"]], ["image", "video"])
+
+        download = client.get(urlparse(response.data["attachments"][0]["downloadUrl"]).path)
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download["Content-Type"], "image/png")
+
     def test_reply_parent_must_belong_to_same_thread(self):
         company = Company.objects.create(name="Acme", slug="acme")
         user = User.objects.create_user(username="company", role=User.Role.COMPANY, company=company)
@@ -87,6 +111,8 @@ class ChatApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+
+class ChatWebsocketTests(TransactionTestCase):
     async def test_websocket_rejects_missing_token(self):
         communicator = WebsocketCommunicator(application, "/ws/chat/?chat=group")
         connected, _ = await communicator.connect()

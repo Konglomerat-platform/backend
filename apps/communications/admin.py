@@ -2,11 +2,16 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.filters.admin import ChoicesDropdownFilter, RangeDateTimeFilter, RelatedDropdownFilter
 
-from .models import ChatMessage, ChatThread, MessageReceipt
+from .models import ChatAttachment, ChatMessage, ChatThread, MessageReceipt
 
 
 class ChatMessageInline(TabularInline):
     model = ChatMessage
+    extra = 0
+
+
+class ChatAttachmentInline(TabularInline):
+    model = ChatAttachment
     extra = 0
 
 
@@ -37,6 +42,19 @@ class ChatMessageAdmin(ModelAdmin):
     search_fields = ("legacy_id", "text", "name", "sender__username", "sender__email")
     autocomplete_fields = ("thread", "sender")
     readonly_fields = ("created_at", "updated_at")
+    inlines = [ChatAttachmentInline]
+
+
+@admin.register(ChatAttachment)
+class ChatAttachmentAdmin(ModelAdmin):
+    list_display = ("id", "message", "kind", "name", "content_type", "size_bytes", "sort_order")
+    list_filter = (
+        ("kind", ChoicesDropdownFilter),
+        ("message", RelatedDropdownFilter),
+    )
+    search_fields = ("name", "message__text")
+    autocomplete_fields = ("message",)
+    readonly_fields = ("created_at",)
 
 
 @admin.register(MessageReceipt)
