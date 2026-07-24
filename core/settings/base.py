@@ -36,6 +36,10 @@ env = environ.Env(
     SECURE_HSTS_INCLUDE_SUBDOMAINS=(bool, False),
     SECURE_HSTS_PRELOAD=(bool, False),
     REDIS_URL=(str, "redis://localhost:6379/0"),
+    GEMINI_API_KEY=(str, ""),
+    GEMINI_MODEL=(str, "gemini-2.5-flash"),
+    GEMINI_TIMEOUT_SECONDS=(int, 20),
+    GEMINI_MAX_OUTPUT_TOKENS=(int, 400),
     USE_S3=(bool, False),
     USE_S3_FOR_STATIC=(bool, False),
     AWS_S3_VERIFY=(bool, True),
@@ -201,6 +205,13 @@ CHANNEL_LAYERS = {
         "CONFIG": {"hosts": [REDIS_URL]},
     }
 }
+
+# The assistant falls back to scripted answers when the key is absent, so an
+# unset key is a supported configuration rather than a startup error.
+GEMINI_API_KEY = env("GEMINI_API_KEY")
+GEMINI_MODEL = env("GEMINI_MODEL")
+GEMINI_TIMEOUT_SECONDS = env("GEMINI_TIMEOUT_SECONDS")
+GEMINI_MAX_OUTPUT_TOKENS = env("GEMINI_MAX_OUTPUT_TOKENS")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Konglomerat API",

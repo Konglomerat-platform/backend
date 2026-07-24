@@ -11,6 +11,11 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+# The suite must never reach the Gemini API: a developer with a key in .env
+# would otherwise get non-deterministic assertions, network-dependent runs and
+# real quota spend. Tests that exercise the model override this explicitly and
+# patch the client.
+GEMINI_API_KEY = ""
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 DATABASES = {
     "default": {

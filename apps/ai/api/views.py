@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.ai.models import AiInteraction, AiUsage
-from apps.ai.services import ai_letter, ai_reply, on_topic
+from apps.ai.services import ai_letter, assistant_reply, on_topic
 from apps.catalog.models import Product
 from apps.companies.models import Company
 from apps.content.models import NewsArticle
@@ -54,6 +54,9 @@ class AiChatView(APIView):
                 "reply": serializers.CharField(required=False, allow_null=True),
                 "remaining": serializers.IntegerField(required=False, allow_null=True),
                 "locked": serializers.BooleanField(),
+                # True when the reply came from the scripted fallback because
+                # the model was unavailable or unconfigured.
+                "degraded": serializers.BooleanField(required=False),
                 "error": serializers.CharField(required=False),
             },
         ),
@@ -68,9 +71,17 @@ class AiChatView(APIView):
             if not topic:
                 AiInteraction.objects.create(user=user, prompt=message, lang=lang, off_topic=True)
                 return Response({"offtopic": True, "reply": None, "remaining": None, "locked": False})
-            reply = _reply(message, lang)
+            reply, degraded = _reply(message, lang)
             AiInteraction.objects.create(user=user, prompt=message, reply=reply, lang=lang)
-            return Response({"offtopic": False, "reply": reply, "remaining": None, "locked": False})
+            return Response(
+                {
+                    "offtopic": False,
+                    "reply": reply,
+                    "remaining": None,
+                    "locked": False,
+                    "degraded": degraded,
+                }
+            )
 
         visitor = request.data.get("visitor") or ""
         if not visitor:
@@ -90,7 +101,7 @@ class AiChatView(APIView):
             )
         usage.prompt_count += 1
         usage.save(update_fields=["prompt_count", "updated_at"])
-        reply = _reply(message, lang)
+        reply, degraded = _reply(message, lang)
         AiInteraction.objects.create(visitor_id=visitor, prompt=message, reply=reply, lang=lang)
         return Response(
             {
@@ -98,6 +109,7 @@ class AiChatView(APIView):
                 "reply": reply,
                 "remaining": max(0, 3 - usage.prompt_count),
                 "locked": usage.prompt_count >= 3,
+                "degraded": degraded,
             }
         )
 
@@ -130,8 +142,9 @@ class AiLetterView(APIView):
         )
 
 
-def _reply(message: str, lang: str) -> str:
-    return ai_reply(
+def _reply(message: str, lang: str) -> tuple[str, bool]:
+    """Return (reply, degraded); degraded means the model was not used."""
+    return assistant_reply(
         message,
         lang,
         products=Product.objects.select_related("company"),
