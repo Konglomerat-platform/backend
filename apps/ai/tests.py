@@ -204,3 +204,23 @@ class TopicGateTests(TestCase):
 
         for phrasing in ("best pizza recipe", "who won the football match"):
             self.assertFalse(on_topic(phrasing), phrasing)
+
+
+class ScriptedFallbackQualityTests(TestCase):
+    """The fallback runs in production until a key is set, so it must answer."""
+
+    def setUp(self):
+        Company.objects.create(name="Alpha", slug="alpha")
+        Company.objects.create(name="Beta", slug="beta")
+        self.user = User.objects.create_user(username="u2", role=User.Role.COMPANY)
+
+    def test_plural_phrasing_reaches_the_company_branch_not_the_generic_reply(self):
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        response = client.post(
+            "/api/ai/chat/", {"message": "how many companies", "lang": "en"}, format="json"
+        )
+
+        self.assertTrue(response.data["degraded"])  # no key configured in tests
+        self.assertIn("2 companies", response.data["reply"])
+        self.assertNotIn("Analyzing based on", response.data["reply"])

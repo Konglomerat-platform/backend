@@ -133,7 +133,9 @@ def ai_reply(message: str, lang: str, *, products, news, conferences, complaints
             f"Konglomerat is a platform uniting {total} companies under one management system.",
         )
 
-    if re.search(r"company|kompan|компан|firm", q):
+    # "compan" rather than "company", so the plural reaches this branch instead
+    # of falling through to the generic answer.
+    if re.search(r"compan|kompan|компан|firm", q):
         # Names come from the company table, not from distinct product owners:
         # the latter silently hid every company that has no products yet. The
         # trailing "+" is gone because the count is now exact.
