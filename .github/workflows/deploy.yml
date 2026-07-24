@@ -131,17 +131,58 @@ jobs:
             echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
           fi
 
+          # Pin the resolved image in .env. Without this the file keeps the
+          # :main default, and any later `docker compose up` (including the
+          # frontend deploy bringing up nginx, which pulls in its backend
+          # dependency) recreates the backend from a stale local :main image
+          # and silently rolls this deployment back.
+          if grep -q '^BACKEND_IMAGE=' .env; then
+            sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=$BACKEND_IMAGE|" .env
+          else
+            echo "BACKEND_IMAGE=$BACKEND_IMAGE" >> .env
+          fi
+
           BACKEND_IMAGE="$BACKEND_IMAGE" docker compose pull backend
           BACKEND_IMAGE="$BACKEND_IMAGE" docker compose up -d --remove-orphans postgres backend nginx
           docker compose ps
 
+          # Confirm the container really is the image we just built, so a
+          # deployment that failed to recreate cannot report success.
+          # `compose images -q` prints a bare hex id, `image inspect` prints it
+          # sha256-prefixed, so normalise before comparing.
+          RUNNING_IMAGE="$(docker compose images -q backend | head -n1 | sed 's|^sha256:||')"
+          EXPECTED_IMAGE="$(docker image inspect --format '{{.Id}}' "$BACKEND_IMAGE" | sed 's|^sha256:||')"
+          if [ "$RUNNING_IMAGE" != "$EXPECTED_IMAGE" ]; then
+            echo "Backend container runs '$RUNNING_IMAGE', expected '$EXPECTED_IMAGE' ($BACKEND_IMAGE)" >&2
+            docker compose logs --tail=100 backend
+            exit 1
+          fi
+
+          deployed=0
           for attempt in $(seq 1 30); do
             if docker compose exec -T nginx wget -q -T 5 -O /dev/null http://127.0.0.1/api/schema/; then
-              exit 0
+              deployed=1
+              break
             fi
             sleep 2
           done
 
-          docker compose logs --tail=100 backend nginx
-          exit 1
+          if [ "$deployed" -ne 1 ]; then
+            docker compose logs --tail=100 backend nginx
+            exit 1
+          fi
+
+          # Assert the admin route exists in the code that is actually running.
+          # Checked through Django rather than HTTP so the result cannot be
+          # muddied by proxy redirects; reverse() raises if admin is unrouted.
+          # A stale image serves the API fine but has no api/admin/ route, and
+          # the /api/schema/ probe above cannot tell the difference.
+          if ! docker compose exec -T backend \
+            python manage.py shell -c "from django.urls import reverse; print(reverse('admin:index'))"; then
+            echo "Admin route missing from the deployed image ($BACKEND_IMAGE)" >&2
+            docker compose logs --tail=100 backend
+            exit 1
+          fi
+
+          echo "Deployed $BACKEND_IMAGE with a reachable admin route"
           REMOTE
