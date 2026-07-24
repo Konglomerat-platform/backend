@@ -42,11 +42,19 @@ class StatsView(APIView):
         )
     )
     def get(self, _request):
+        # Every value here is a plain count of what is in the database. These
+        # numbers are published on the public homepage, so they must not be
+        # floored, padded or otherwise inflated: an empty platform has to be
+        # able to report zero.
         return Response(
             {
-                "companies": max(30, Company.objects.filter(active=True).count()),
-                "aiRequests": max(4820, AiInteraction.objects.count()),
-                "startups": RndSubmission.objects.count() + 10,
+                "companies": Company.objects.filter(active=True).count(),
+                # One AiInteraction row is written per AI request, including
+                # off-topic ones and those from signed-in users. AiUsage
+                # .prompt_count is not usable here: it only tracks anonymous
+                # on-topic requests and stops incrementing at the free limit.
+                "aiRequests": AiInteraction.objects.count(),
+                "startups": RndSubmission.objects.count(),
                 "showrooms": Product.objects.count(),
                 "complaints": Complaint.objects.filter(status=Complaint.Status.PENDING).count(),
                 "conferences": Conference.objects.count(),

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from apps.ai.models import AiInteraction, AiUsage
 from apps.ai.services import ai_letter, ai_reply, on_topic
 from apps.catalog.models import Product
+from apps.companies.models import Company
 from apps.content.models import NewsArticle
 from apps.innovation.models import RndSubmission
 from apps.operations.models import Conference
@@ -138,4 +139,7 @@ def _reply(message: str, lang: str) -> str:
         conferences=Conference.objects.all(),
         complaints=Complaint.objects.all(),
         rnd=RndSubmission.objects.all(),
+        # Same queryset the public /api/stats/ counter uses, so the assistant
+        # and the homepage cannot disagree about how many companies exist.
+        companies=Company.objects.filter(active=True),
     )

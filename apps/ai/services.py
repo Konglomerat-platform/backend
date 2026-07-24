@@ -34,7 +34,7 @@ def on_topic(message: str) -> bool:
     return bool(KONG_TOPIC.search(message or "") or GREETING.search(message or ""))
 
 
-def ai_reply(message: str, lang: str, *, products, news, conferences, complaints, rnd) -> str:
+def ai_reply(message: str, lang: str, *, products, news, conferences, complaints, rnd, companies) -> str:
     lang = lang if lang in {"uz", "ru", "en"} else "ru"
     q = (message or "").lower()
 
@@ -49,18 +49,25 @@ def ai_reply(message: str, lang: str, *, products, news, conferences, complaints
         )
 
     if re.search(r"what is|nima|about|konglomerat|конгломерат", q):
+        # Counted live: this sentence used to assert a hardcoded 30, which
+        # contradicted the real figure the same site publishes at /api/stats/.
+        total = companies.count()
         return t(
-            "Konglomerat - 30 kompaniyani yagona boshqaruv ostida birlashtiruvchi platforma.",
-            "Konglomerat - платформа, объединяющая 30 компаний под единым управлением.",
-            "Konglomerat is a platform uniting 30 companies under one management system.",
+            f"Konglomerat - {total} kompaniyani yagona boshqaruv ostida birlashtiruvchi platforma.",
+            f"Konglomerat - платформа, объединяющая {total} компаний под единым управлением.",
+            f"Konglomerat is a platform uniting {total} companies under one management system.",
         )
 
     if re.search(r"company|kompan|компан|firm", q):
-        names = list(products.values_list("company__name", flat=True).distinct())
+        # Names come from the company table, not from distinct product owners:
+        # the latter silently hid every company that has no products yet. The
+        # trailing "+" is gone because the count is now exact.
+        names = list(companies.values_list("name", flat=True))
+        total = len(names)
         return t(
-            f"Platformada {len(names)}+ kompaniya bor: {', '.join(names[:8])}.",
-            f"На платформе {len(names)}+ компаний: {', '.join(names[:8])}.",
-            f"The platform has {len(names)}+ companies: {', '.join(names[:8])}.",
+            f"Platformada {total} ta kompaniya bor: {', '.join(names[:8])}.",
+            f"На платформе {total} компаний: {', '.join(names[:8])}.",
+            f"The platform has {total} companies: {', '.join(names[:8])}.",
         )
 
     if re.search(r"product|mahsulot|товар|catalog|price|narx", q):
