@@ -23,8 +23,22 @@ def tr(uz: str, ru: str, en: str) -> dict[str, str]:
 class Command(BaseCommand):
     help = "Seed demo Konglomerat data matching the legacy business flow."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--skip-users",
+            action="store_true",
+            help=(
+                "Seed catalogue content only. Without this flag the command resets "
+                "the 'admin' superuser password to '12' and creates a 'company1' "
+                "account with the same password, which must never happen on a "
+                "public deployment. Chat seeding is skipped too, as it needs those "
+                "accounts as message senders."
+            ),
+        )
+
     @transaction.atomic
     def handle(self, *args, **options):
+        skip_users = options["skip_users"]
         companies = {
             name: Company.objects.get_or_create(
                 name=name,
@@ -43,23 +57,25 @@ class Command(BaseCommand):
             ]
         }
 
-        admin, _ = User.objects.update_or_create(
-            username="admin",
-            defaults={"role": User.Role.ADMIN, "display_name": "Admin", "is_staff": True, "is_superuser": True},
-        )
-        admin.set_password("12")
-        admin.save()
+        admin = company_user = None
+        if not skip_users:
+            admin, _ = User.objects.update_or_create(
+                username="admin",
+                defaults={"role": User.Role.ADMIN, "display_name": "Admin", "is_staff": True, "is_superuser": True},
+            )
+            admin.set_password("12")
+            admin.save()
 
-        company_user, _ = User.objects.update_or_create(
-            username="company1",
-            defaults={
-                "role": User.Role.COMPANY,
-                "company": companies["Oltin Saroy"],
-                "display_name": "Oltin Saroy",
-            },
-        )
-        company_user.set_password("12")
-        company_user.save()
+            company_user, _ = User.objects.update_or_create(
+                username="company1",
+                defaults={
+                    "role": User.Role.COMPANY,
+                    "company": companies["Oltin Saroy"],
+                    "display_name": "Oltin Saroy",
+                },
+            )
+            company_user.set_password("12")
+            company_user.save()
 
         product_rows = [
             ("p1", "💍", "Oltin Saroy", tr("Oltin uzuk", "Золотое кольцо", "Gold ring"), tr("24K oltin, qo'lda ishlangan", "Золото 24K, ручная работа", "24K gold, handcrafted"), "$1 200"),
@@ -159,26 +175,32 @@ class Command(BaseCommand):
                     },
                 )
 
-        group, _ = ChatThread.objects.get_or_create(
-            kind=ChatThread.Kind.GROUP,
-            company=None,
-            defaults={"title": "Group chat"},
-        )
-        direct, _ = ChatThread.objects.get_or_create(
-            kind=ChatThread.Kind.ADMIN_COMPANY,
-            company=companies["Oltin Saroy"],
-            defaults={"title": "Admin · Oltin Saroy"},
-        )
-        for legacy_id, thread, sender, text_value in [
-            ("g1", group, company_user, "Курс золота обновлён ✅"),
-            ("g2", group, company_user, "Готовим демо стартапов к пятнице."),
-            ("g3", group, admin, "Всем добрый день! Конференция в 15:00."),
-            ("i1", direct, company_user, "Здравствуйте, отчёт готов."),
-            ("i2", direct, admin, "Отлично, проверю сегодня."),
-        ]:
-            ChatMessage.objects.get_or_create(
-                legacy_id=legacy_id,
-                defaults={"thread": thread, "sender": sender, "text": text_value},
+        # Seeded messages need the demo accounts as senders, so this block only
+        # runs when those accounts were created.
+        if not skip_users:
+            group, _ = ChatThread.objects.get_or_create(
+                kind=ChatThread.Kind.GROUP,
+                company=None,
+                defaults={"title": "Group chat"},
             )
+            direct, _ = ChatThread.objects.get_or_create(
+                kind=ChatThread.Kind.ADMIN_COMPANY,
+                company=companies["Oltin Saroy"],
+                defaults={"title": "Admin · Oltin Saroy"},
+            )
+            for legacy_id, thread, sender, text_value in [
+                ("g1", group, company_user, "Курс золота обновлён ✅"),
+                ("g2", group, company_user, "Готовим демо стартапов к пятнице."),
+                ("g3", group, admin, "Всем добрый день! Конференция в 15:00."),
+                ("i1", direct, company_user, "Здравствуйте, отчёт готов."),
+                ("i2", direct, admin, "Отлично, проверю сегодня."),
+            ]:
+                ChatMessage.objects.get_or_create(
+                    legacy_id=legacy_id,
+                    defaults={"thread": thread, "sender": sender, "text": text_value},
+                )
 
-        self.stdout.write(self.style.SUCCESS("Demo data seeded."))
+        if skip_users:
+            self.stdout.write(self.style.SUCCESS("Demo content seeded (users and chats untouched)."))
+        else:
+            self.stdout.write(self.style.SUCCESS("Demo data seeded."))
